@@ -1,0 +1,6 @@
+echo_cocreator_engine/init.py
+
+Initialize the co-creator engine as a module
+
+version = "0.1.0" all = [ "PerceptionInterface", "IntentMapper", "CreativityKernel", "FeedbackLoop", "OutputChannel", "MemoryStore" ]
+
