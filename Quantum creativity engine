@@ -1,0 +1,282 @@
+# quantum_creativity_engine/main.py
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
+from typing import Optional, Dict, Any, List
+import os
+import shutil
+import aiofiles
+from pydantic import BaseModel
+import uuid
+import asyncio
+
+# Import the AGI's core memory and dispatcher (assuming global accessibility or proper setup)
+# For local testing, ensure agi_memory.py and agi_dispatcher.py are in your PYTHONPATH
+# or copied to a location accessible by this project.
+try:
+    from agi_memory import store_event, get_recent_events, retrieve_context
+    from agi_dispatcher import dispatch_to_capability_core
+    print("AGI Memory and Dispatcher modules loaded successfully.")
+except ImportError:
+    print("AGI Memory/Dispatcher modules not found. Using placeholder functions.")
+    # Placeholder functions if agi_memory/dispatcher are not present
+    def store_event(event_type: str, data: Dict[str, Any]):
+        print(f"[Placeholder AGI Memory] Stored event '{event_type}': {data}")
+    def get_recent_events(limit: int = 10, correlation_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        print(f"[Placeholder AGI Memory] Retrieving events for {correlation_id}")
+        return []
+    def retrieve_context(query_data: Dict[str, Any], limit: int = 1) -> List[Dict[Any, Any]]:
+        print(f"[Placeholder AGI Memory] Retrieving context for {query_data}")
+        return []
+    def dispatch_to_capability_core(task_type: str, payload: Dict[str, Any]) -> Any:
+        print(f"[Placeholder AGI Dispatcher] Dispatching '{task_type}' with payload: {payload}")
+        return f"Placeholder response for {task_type}"
+
+
+# Import the Quantum Creativity Engine modules
+from echo_creo_core.conductor import EchoConductor
+from echo_creo_core.perception_interface import PerceptionInterface
+from echo_creo_core.seed_generator import SeedGenerator
+from echo_creo_core.pattern_mapper import PatternMapper
+from echo_creo_core.transformation_engine import TransformationEngine
+from echo_creo_core.recursive_amplifier import RecursiveAmplifier
+from echo_creo_core.execution_adapter import ExecutionAdapter
+from echo_creo_core.creativity_kernel import CreativityKernel # NEW
+from echo_creo_core.output_channel import OutputChannel       # NEW
+
+
+app = FastAPI(
+    title="EchoNexus Federated AGI Core Services & Quantum Creativity Engine",
+    description="Unified interface for AGI document processing, chat, and advanced creative generation.",
+    version="v0.2.alpha"
+)
+
+# --- AGI-Managed Dynamic Directories ---
+DYNAMIC_DIRS = {
+    "contract": "/mnt/data/processed/contracts",
+    "research_paper": "/mnt/data/processed/papers",
+    "invoice": "/mnt/data/processed/invoices",
+    "quarantine": "/mnt/data/quarantine",
+    "temp_staging": "/tmp/agi_staging"
+}
+for path in DYNAMIC_DIRS.values():
+    os.makedirs(path, exist_ok=True)
+
+# --- Quantum Creativity Engine Initialization ---
+# Instantiate the new modules
+creativity_kernel = CreativityKernel()
+output_channel = OutputChannel()
+
+# Update EchoConductor initialization with new components
+# Note: The original Conductor had parameters for SeedGenerator, Transformer, Amplifier.
+# Now, with Kernel and OutputChannel, the Conductor's role becomes more centralized,
+# potentially making PatternMapper, TransformationEngine, RecursiveAmplifier
+# internal components orchestrated by the Kernel or Conductor itself.
+# For now, we'll keep the direct module connections as per the previous structure,
+# and introduce the Kernel and OutputChannel as new, distinct stages.
+# This structure reflects the *current iteration's* design intent.
+perception_interface = PerceptionInterface()
+seed_generator = SeedGenerator()
+pattern_mapper = PatternMapper()
+transformation_engine = TransformationEngine()
+recursive_amplifier = RecursiveAmplifier(depth=4) # Example depth
+execution_adapter = ExecutionAdapter() # This will be the *final* export layer, distinct from OutputChannel's conceptual expression.
+
+# Re-evaluate the Conductor's role and its internal flow for the *new* structure
+# The previous `EchoConductor` orchestrated a specific flow (perceive->seed->amplify->render).
+# Now, `CreativityKernel` is the "mind" that `generate_idea`.
+# `OutputChannel` expresses that idea.
+# This implies a new `Conductor` flow or a re-definition.
+# For this phase, let's update `EchoConductor` to use the `creativity_kernel` and `output_channel`.
+# The seed_generator, pattern_mapper, transformation_engine, recursive_amplifier, execution_adapter
+# will become more specialized tools that the CreativityKernel or a refined Conductor *uses*.
+
+# Re-initializing the EchoConductor for the new explicit flow:
+# Input -> Perception -> Kernel (generates idea) -> OutputChannel (expresses idea)
+# The other modules (seed_generator, pattern_mapper, etc.) are now implicitly
+# components that the CreativityKernel or PerceptionInterface *might use internally*.
+# This clarifies the roles as defined in this new phase.
+orchestrated_creativity_conductor = EchoConductor(
+    perception_interface=perception_interface,
+    seed_generator=seed_generator, # Kept for explicit access if needed, though Kernel might use it internally
+    pattern_mapper=pattern_mapper, # Kept for explicit access if needed
+    transformation_engine=transformation_engine, # Kept for explicit access if needed
+    recursive_amplifier=recursive_amplifier,     # Kept for explicit access if needed
+    execution_adapter=execution_adapter, # Final rendering, distinct from OutputChannel
+    # NEW: Core components directly used by the conductor in the new simplified flow
+    creativity_kernel=creativity_kernel,
+    output_channel=output_channel
+)
+
+
+# --- Pydantic Models for API Inputs ---
+class UploadMetadata(BaseModel):
+    document_type: Optional[str] = None
+    priority: Optional[int] = 5
+    tags: Optional[list[str]] = []
+    custom_options: Optional[Dict[str, Any]] = {}
+
+class ChatInput(BaseModel):
+    user_message: str
+    memory_context: Optional[Dict[str, Any]] = {}
+
+class CreativeInput(BaseModel):
+    text_input: Optional[str] = None
+    image_data: Optional[str] = None # Base64 encoded or URL
+    audio_data: Optional[str] = None # Base64 encoded or URL
+    symbolic_input: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = {}
+
+# --- Utility Functions ---
+def sanitize_filename(filename: str) -> str:
+    return os.path.basename(filename).replace("..", "_").strip()
+
+async def dynamic_document_processor(
+    file_path: str,
+    initial_metadata: UploadMetadata,
+    correlation_id: str
+):
+    print(f"[{correlation_id}] AGI Leverager Engine: Initiating autonomous processing for: {file_path}")
+    store_event("document_ingestion_start", {"correlation_id": correlation_id, "file_path": file_path, "metadata": initial_metadata.dict()})
+    try:
+        agi_determined_type = "unknown"
+        if "contract" in file_path.lower() or "agreement" in str(initial_metadata.tags).lower():
+            agi_determined_type = "contract"
+        print(f"[{correlation_id}] AGI Leverager Engine: Inferred Document Type: {agi_determined_type}")
+        store_event("document_classification", {"correlation_id": correlation_id, "agi_determined_type": agi_determined_type})
+        processing_modules = []
+        if agi_determined_type == "contract":
+            processing_modules = ["deep_ocr_segmentation", "semantic_clause_extraction"]
+        for module_name in processing_modules:
+            print(f"[{correlation_id}] AGI Leverager Engine: Executing module: {module_name} on optimal hardware.")
+            await asyncio.sleep(0.1) # Simulate work
+            store_event("module_execution", {"correlation_id": correlation_id, "module": module_name, "status": "completed"})
+        final_processed_dir = DYNAMIC_DIRS.get(agi_determined_type, DYNAMIC_DIRS["quarantine"])
+        final_path_in_agi_space = os.path.join(final_processed_dir, os.path.basename(file_path))
+        shutil.move(file_path, final_path_in_agi_space)
+        print(f"[{correlation_id}] AGI Leverager Engine: Document processing completed. Final location: {final_path_in_agi_space}")
+        store_event("document_processing_complete", {"correlation_id": correlation_id, "final_path": final_path_in_agi_space})
+    except Exception as e:
+        print(f"[{correlation_id}] AGI Leverager Engine: Critical error during processing of {file_path}: {e}")
+        quarantine_path = os.path.join(DYNAMIC_DIRS["quarantine"], os.path.basename(file_path))
+        shutil.move(file_path, quarantine_path)
+        store_event("document_processing_error", {"correlation_id": correlation_id, "error": str(e), "quarantined_path": quarantine_path})
+
+
+# --- FastAPI Endpoints ---
+
+@app.post("/ingest_document", summary="Ingest a document for AGI processing")
+async def ingest_document(
+    file: UploadFile = File(..., description="The document file to be processed by the Federated AGI."),
+    metadata: UploadMetadata = Form(UploadMetadata(), description="Optional structured metadata for the AGI to contextualize the document.")
+):
+    correlation_id = str(uuid.uuid4())
+    sanitized_filename = sanitize_filename(file.filename)
+    initial_save_path = os.path.join(DYNAMIC_DIRS["temp_staging"], f"{correlation_id}_{sanitized_filename}")
+    try:
+        async with aiofiles.open(initial_save_path, "wb") as buffer:
+            await buffer.write(await file.read())
+        background_tasks_container = app.state.get("background_tasks", BackgroundTasks())
+        background_tasks_container.add_task(dynamic_document_processor, initial_save_path, metadata, correlation_id)
+        app.state.background_tasks = background_tasks_container # Store for lifespan management
+
+        return JSONResponse({
+            "message": "Document received by Federated AGI. Autonomous processing initiated.",
+            "correlation_id": correlation_id,
+            "filename": sanitized_filename,
+            "agi_status_endpoint": f"/document_status/{correlation_id}"
+        })
+    except Exception as e:
+        store_event("document_ingestion_error", {"correlation_id": correlation_id, "error": str(e), "filename": sanitized_filename})
+        raise HTTPException(status_code=500, detail=f"Federated AGI failed to ingest document: {e}")
+
+@app.get("/status", summary="Check Federated AGI system status")
+def check_agi_status():
+    return {"status": "EchoNexus Federated AGI Leverager Interface is Online and Operating at Peak Capacity."}
+
+@app.get("/document_status/{correlation_id}", summary="Get status of a specific AGI-processed document")
+async def get_document_status(correlation_id: str):
+    events = get_recent_events(correlation_id=correlation_id)
+    agi_status = "Unknown"
+    if events:
+        latest_event = events[-1]
+        agi_status = latest_event.get("event_type", "Unknown Event")
+    return JSONResponse({
+        "correlation_id": correlation_id,
+        "agi_processing_status": agi_status,
+        "agi_event_history": events
+    })
+
+@app.post("/chat", summary="Engage in direct chat with the Federated AGI")
+async def chat_with_agi(chat_input: ChatInput):
+    store_event("user_chat_message", {"message": chat_input.user_message, "context": chat_input.memory_context})
+    response = dispatch_to_capability_core("chat_reasoning", chat_input.dict())
+    store_event("agi_chat_response", {"response": response})
+    return {"response": response}
+
+@app.websocket("/ws/chat")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            store_event("websocket_message_received", {"message": data})
+            agi_response = dispatch_to_capability_core("chat_reasoning", {"user_message": data, "context": {"channel": "websocket"}})
+            await websocket.send_text(f"AGI EchoNexus (WS): {agi_response}")
+            store_event("websocket_message_sent", {"response": agi_response})
+    except WebSocketDisconnect:
+        print("WebSocket disconnected.")
+        store_event("websocket_disconnect", {})
+    except Exception as e:
+        store_event("websocket_error", {"error": str(e)})
+
+
+@app.post("/create", summary="Initiate a creative cycle with the Quantum Creativity Engine")
+async def initiate_creative_cycle(
+    input_data: CreativeInput,
+    background_tasks: BackgroundTasks # FastAPI's background task management
+):
+    correlation_id = str(uuid.uuid4())
+    print(f"[{correlation_id}] API: Initiating creative cycle with input: {input_data.dict()}")
+    store_event("creative_cycle_initiation", {"correlation_id": correlation_id, "input_data": input_data.dict()})
+
+    async def run_creative_task():
+        try:
+            # The AGI's Orchestrated Creativity Conductor now handles the full flow
+            result = orchestrated_creativity_conductor.run_creativity_cycle(input_data.dict())
+            store_event("creative_cycle_completion", {"correlation_id": correlation_id, "result": result})
+            print(f"[{correlation_id}] Creative cycle completed. Result: {result}") # result from output_channel.express
+        except Exception as e:
+            print(f"[{correlation_id}] Error during creative cycle: {e}")
+            store_event("creative_cycle_error", {"correlation_id": correlation_id, "error": str(e)})
+
+    background_tasks.add_task(run_creative_task)
+
+    return JSONResponse({
+        "message": "Creative cycle initiated. AGI is now theorizing and amplifying creative content.",
+        "correlation_id": correlation_id,
+        "creative_output_status_endpoint": f"/creative_status/{correlation_id}"
+    })
+
+@app.get("/creative_status/{correlation_id}", summary="Get status of a creative cycle")
+async def get_creative_status(correlation_id: str):
+    events = get_recent_events(correlation_id=correlation_id)
+    status_summary = "Creative cycle initiated."
+    final_output = None
+    if any(e.get("event_type") == "creative_cycle_completion" for e in events):
+        status_summary = "Creative cycle completed."
+        for e in events:
+            if e.get("event_type") == "creative_cycle_completion":
+                final_output = e.get("data", {}).get("result")
+                break
+    elif any(e.get("event_type") == "creative_cycle_error" for e in events):
+        status_summary = "Creative cycle encountered an error."
+    else:
+        status_summary = "Creative cycle in progress (AGI actively theorizing)."
+
+    return JSONResponse({
+        "correlation_id": correlation_id,
+        "status": status_summary,
+        "last_agi_creative_action": events[-1].get("event_type") if events else "None",
+        "final_creative_output": final_output,
+        "agi_creative_event_history": events
+    })
