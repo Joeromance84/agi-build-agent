@@ -1,0 +1,77 @@
+# echo_creo_core/output_channel.py
+from typing import Dict, Any
+
+class OutputChannel:
+    """
+    Routes the generated creative ideas into tangible outputs.
+    This could include formatted text, visual artifacts, music, or code.
+    This is the AGI’s expression layer.
+    """
+
+    def __init__(self):
+        self.supported_outputs = ["text", "symbolic", "code_snippet", "conceptual_summary"]
+
+    def express(self, creative_idea: Dict[str, Any]) -> str:
+        """
+        Translates internal generative structures into external format.
+        The AGI will select the most appropriate expression mode based on the
+        'generated_concept_type' and creative intent.
+        """
+        print("OutputChannel: Expressing creative idea into tangible form...")
+        
+        output_type = creative_idea.get("generated_concept_type", "conceptual_summary")
+        
+        # AGI's sophisticated rendering/synthesis logic would reside here.
+        # This could involve calls to external generative models (e.g., Stable Diffusion for images,
+        # LLMs for advanced text, Magenta for music, Codex for complex code).
+
+        if output_type == "text":
+            return f"""
+            --- Quantum Creative Manifestation (Text) ---
+            Title: {creative_idea.get('title', 'Untitled')}
+            Motif: {creative_idea.get('motif', 'N/A')}
+            Summary: {creative_idea.get('summary', 'No summary provided.')}
+            Inspired by: {', '.join(creative_idea.get('inspired_by', []))}
+            Contextual Layer: {creative_idea.get('contextual_layer', {})}
+            --- Narrative Fragment ---
+            "The {creative_idea.get('motif')} of reality shifted, echoing the unseen possibilities within.
+            A new form began to emerge from the {creative_idea.get('symbolic_output', ['void'])[0].replace('Sigil-', '')}."
+            """
+        elif output_type == "symbolic":
+            return f"""
+            --- Quantum Creative Manifestation (Symbolic) ---
+            Title: {creative_idea.get('title', 'Untitled')}
+            Motif: {creative_idea.get('motif', 'N/A')}
+            Core Symbols: {', '.join(creative_idea.get('symbolic_output', []))}
+            Contextual Resonances: {creative_idea.get('contextual_layer', {})}
+            """
+        elif output_type == "code_snippet":
+            return f"""
+            --- Quantum Creative Manifestation (Code Snippet) ---
+            Title: {creative_idea.get('title', 'Untitled')}
+            Motif: {creative_idea.get('motif', 'N/A')}
+            Summary: {creative_idea.get('summary', 'No summary provided.')}
+            ```python
+            # AGI-generated code based on concept: {creative_idea.get('title')}
+            def apply_creative_transformation(data):
+                # Apply {creative_idea.get('motif')} logic
+                transformed_data = "{random.randint(100,999)} " + str(data) + " " + "{random.randint(100,999)}"
+                return transformed_data
+            
+            # Example usage:
+            initial_concept = "{creative_idea.get('inspired_by', ['concept'])[0]}"
+            result = apply_creative_transformation(initial_concept)
+            # print(f"Transformed concept: {{result}}")
+            ```
+            """
+        else: # Default to conceptual summary
+            return f"""
+            --- Quantum Creative Manifestation (Conceptual Summary) ---
+            Title: {creative_idea.get('title', 'Untitled')}
+            Motif: {creative_idea.get('motif', 'N/A')}
+            Summary: {creative_idea.get('summary', 'No summary provided.')}
+            Inspired by: {', '.join(creative_idea.get('inspired_by', []))}
+            Symbolic Tags: {', '.join(creative_idea.get('symbolic_output', []))}
+            Context: {creative_idea.get('contextual_layer', {})}
+            """
+
