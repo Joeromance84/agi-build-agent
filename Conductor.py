@@ -1,11 +1,13 @@
 # echo_creo_core/conductor.py
 from typing import Any, Dict
 from .perception_interface import PerceptionInterface
-from .seed_generator import SeedGenerator
-from .pattern_mapper import PatternMapper
-from .transformation_engine import TransformationEngine
-from .recursive_amplifier import RecursiveAmplifier
-from .execution_adapter import ExecutionAdapter
+from .seed_generator import SeedGenerator # Potentially used by Kernel internally now
+from .pattern_mapper import PatternMapper # Potentially used by Kernel internally now
+from .transformation_engine import TransformationEngine # Potentially used by Kernel internally now
+from .recursive_amplifier import RecursiveAmplifier # Potentially used by Kernel internally now
+from .execution_adapter import ExecutionAdapter     # Still the final external export
+from .creativity_kernel import CreativityKernel     # NEW: The core generative mind
+from .output_channel import OutputChannel           # NEW: The expression layer
 
 class EchoConductor:
     """
@@ -13,52 +15,62 @@ class EchoConductor:
     This class coordinates the flow of creative processing,
     and represents the "open slot" for the advanced entity (Echo, LOGAN_L, AGI)
     to guide and re-theorize the creative cycle.
+
+    This updated Conductor now clearly leverages the new CreativityKernel
+    and OutputChannel, streamlining the explicit creative generation flow.
+    The other modules (seed_generator, pattern_mapper, etc.) can be seen
+    as either internal tools of the Kernel or stages that the Conductor
+    might dynamically insert/skip based on AGI's intent.
     """
     def __init__(
         self,
         perception_interface: PerceptionInterface,
-        seed_generator: SeedGenerator,
-        pattern_mapper: PatternMapper,
-        transformation_engine: TransformationEngine,
-        recursive_amplifier: RecursiveAmplifier,
-        execution_adapter: ExecutionAdapter
+        seed_generator: SeedGenerator, # Kept as a module EchoConductor can explicitly call if needed
+        pattern_mapper: PatternMapper, # Kept as a module EchoConductor can explicitly call if needed
+        transformation_engine: TransformationEngine, # Kept as a module EchoConductor can explicitly call if needed
+        recursive_amplifier: RecursiveAmplifier,     # Kept as a module EchoConductor can explicitly call if needed
+        execution_adapter: ExecutionAdapter,         # The ultimate external rendering layer
+        creativity_kernel: CreativityKernel,         # NEW: Core Generative Logic
+        output_channel: OutputChannel                # NEW: Expression Layer
     ):
-        self.perception_interface = perception_interface
-        self.seed_generator = seed_generator
-        self.pattern_mapper = pattern_mapper
-        self.transformation_engine = transformation_engine
-        self.recursive_amplifier = recursive_amplifier
-        self.execution_adapter = execution_adapter
+        self.perception = perception_interface
+        self.seed_gen = seed_generator # Now potentially a sub-tool or direct call
+        self.pattern_map = pattern_mapper # Now potentially a sub-tool or direct call
+        self.transform_eng = transformation_engine # Now potentially a sub-tool or direct call
+        self.recursive_amp = recursive_amplifier   # Now potentially a sub-tool or direct call
+        self.execution_adapt = execution_adapter   # Final adapter for external systems
 
-    def run_creativity_cycle(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        self.kernel = creativity_kernel            # The "mind" that generates the idea
+        self.output_channel = output_channel       # The "voice" that expresses the idea
+
+    def run_creativity_cycle(self, input_data: Dict[str, Any]) -> str:
         """
-        Executes a full creative cycle from input perception to final rendering.
-        The AGI will dynamically adjust parameters and even re-order steps
-        based on its creative intent and real-time feedback.
+        Executes a full creative cycle from input perception to final expression.
+        This simplified flow highlights the core generative process.
         """
-        print("\n--- EchoConductor: Initiating Creative Cycle ---")
+        print("\n--- EchoConductor: Initiating Creative Cycle (New Flow) ---")
 
-        # Step 1: Perceive Input Patterns
-        stimuli = self.perception_interface.ingest(input_data)
-        print(f"Conductor: Perceived stimuli: {stimuli.get('perceived_elements')}")
+        # 1. Perceive Input Patterns
+        perceived_stimuli = self.perception.ingest(input_data)
+        print(f"Conductor: Perceived stimuli: {perceived_stimuli.get('perceived_elements')}")
 
-        # Step 2: Generate Seed Fragment
-        seed = self.seed_generator.generate_seed(stimuli)
-        print(f"Conductor: Generated seed: {seed.get('value')}")
+        # 2. Generate Idea (via Creativity Kernel)
+        # The Kernel internally uses its own logic for seed generation, pattern mapping,
+        # transformation, and amplification, reflecting its "mind" at work.
+        creative_idea = self.kernel.generate_idea(perceived_stimuli)
+        print(f"Conductor: Idea generated by Kernel: {creative_idea.get('title')}")
 
-        # Step 3: Map Symbolic Patterns (Optional, AGI can dynamically insert/skip)
-        mapped_seed = self.pattern_mapper.map_patterns(seed)
-        print(f"Conductor: Mapped patterns: {mapped_seed.get('identified_patterns')}")
+        # 3. Express Idea (via Output Channel)
+        # The OutputChannel translates the internal creative idea into an external format.
+        expressed_output = self.output_channel.express(creative_idea)
+        print(f"Conductor: Idea expressed via Output Channel.")
 
-        # Step 4: Amplify Recursively (using the Transformation Engine)
-        # The AGI can dynamically adjust the amplifier's depth or even the transformer itself.
-        amplified_result = self.recursive_amplifier.amplify(mapped_seed, self.transformation_engine)
-        print(f"Conductor: Amplified result: {amplified_result.get('value')}")
-
-        # Step 5: Render Final Creative Result
-        final_creative_output = self.execution_adapter.render_output(amplified_result)
-        print(f"Conductor: Final creative output rendered: {final_creative_output.get('rendered_representation')}")
-
+        # 4. (Optional) Final Adaptation/Export via ExecutionAdapter if needed for external systems
+        # The ExecutionAdapter can take the 'expressed_output' and prepare it for
+        # specific external systems (e.g., save to a file, push to a printer, etc.).
+        # For simplicity, we'll return the expressed_output directly from the channel for now.
+        # final_render = self.execution_adapt.render_output({"expressed_content": expressed_output})
+        
         print("--- EchoConductor: Creative Cycle Complete ---\n")
-        return final_creative_output
+        return expressed_output
 
